@@ -11,6 +11,7 @@ import numpy as np
 from torchvision import transforms
 import torch
 import os
+import pickle
 
 from utils.arguments import load_opt_from_config_file
 from semantic_sam.BaseModel import BaseModel
@@ -49,38 +50,46 @@ def build_semantic_sam(model_type, ckpt):
     return model_semantic_sam
 
 
-def plot_results(outputs, image_ori, save_path='../vis/'):
+def plot_results(outputs, image_ori, save_path='../vis/', save_labels=False):
     """
     plot input image and its reuslts
     """
     if os.path.isdir(save_path):
         image_ori_name = 'input.png'
         im_name = 'example.png'
+        pkl_name= "masks.pkl"
     else:
         image_ori_name = os.path.basename(save_path).split('.')[0] + '_input.png'
         im_name = os.path.basename(save_path).split('.')[0]+ '_example.png'
+        pkl_name = os.path.basename(save_path).split('.')[0]+".pkl"
         save_path = os.path.dirname(save_path)
         
     if not os.path.exists(save_path):
         os.mkdir(save_path)       
         
-    fig = plt.figure()
-    plt.imshow(image_ori)
-    plt.savefig(os.path.join(save_path, image_ori_name))
-    show_anns(outputs)
-    fig.canvas.draw()
-    im = Image.frombytes('RGB', fig.canvas.get_width_height(), fig.canvas.tostring_rgb())
-    plt.savefig(os.path.join(save_path, im_name))
+    if save_labels:
+        pkl_fp = os.path.join(save_path, pkl_name)
+        with open(pkl_fp, 'wb') as f:
+            pickle.dump(outputs, f)
+        im = None
+    else:
+        fig = plt.figure()
+        plt.imshow(image_ori)
+        plt.savefig(os.path.join(save_path, image_ori_name))
+        show_anns(outputs)
+        fig.canvas.draw()
+        im = Image.frombytes('RGB', fig.canvas.get_width_height(), fig.canvas.tostring_rgb())
+        plt.savefig(os.path.join(save_path, im_name))
     return im
 
-def plot_multi_results(iou_sort_masks, area_sort_masks, image_ori, save_path='../vis/'):
+def plot_multi_results(iou_sort_masks, area_sort_masks, image_ori, save_path='../vis/', fn="input.png"):
     """
     plot input image and its reuslts
     """
     if not os.path.exists(save_path):
         os.mkdir(save_path)
     plt.imshow(image_ori)
-    plt.savefig('../vis/input.png')
+    plt.savefig(os.path.join(save_path, fn))
     def create_long_image(masks):
         ims = []
         for img in masks:
@@ -90,5 +99,5 @@ def plot_multi_results(iou_sort_masks, area_sort_masks, image_ori, save_path='..
         for i, im in enumerate(ims):
             result.paste(im, box=(i * width, 0))
         return result
-    create_long_image(iou_sort_masks).save('../vis/all_results_sort_by_iou.png')
-    create_long_image(area_sort_masks).save('../vis/all_results_sort_by_areas.png')
+    create_long_image(iou_sort_masks).save(os.path.join(save_path, fn.split(".")[0]+'_all_results_sort_by_iou.png'))
+    create_long_image(area_sort_masks).save(os.path.join(save_path,fn.split(".")[0]+'_all_results_sort_by_areas.png'))
